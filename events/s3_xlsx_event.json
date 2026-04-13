@@ -1,0 +1,15 @@
+{
+  "Records": [
+    {
+      "s3": {
+        "bucket": {
+          "name": "flawless-doc2order-input-dev"
+        },
+        "object": {
+          "key": "input/dev/evapo/sample.xlsx",
+          "eTag": "abc123"
+        }
+      }
+    }
+  ]
+}

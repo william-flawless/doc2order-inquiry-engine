@@ -1,0 +1,23 @@
+customer_id: evapo
+
+input:
+  supported_file_types:
+    - pdf
+    - xlsx
+
+parsing:
+  pdf:
+    enable_ocr: true
+    enable_llm_extraction: true
+  xlsx:
+    multi_sheet: true
+
+matching:
+  candidate_top_k: 5
+  min_confidence_match: 0.85
+  min_confidence_low: 0.60
+
+report:
+  output_formats:
+    - csv
+    - xlsx

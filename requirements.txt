@@ -1,0 +1,8 @@
+boto3
+requests
+openpyxl
+pandas
+rapidfuzz
+python-dateutil
+pydantic
+aws-lambda-powertools
