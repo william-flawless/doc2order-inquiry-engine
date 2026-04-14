@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3AccessForInquiryEngineBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::flawless-doc2order-inquiry-engine-prod",
+        "arn:aws:s3:::flawless-doc2order-inquiry-engine-prod/*"
+      ]
+    },
+    {
+      "Sid": "ReadGraphSecret",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:eu-west-2:852487366921:secret:doc2order/graph/intake-TRJzL9"
+      ]
+    }
+  ]
+}

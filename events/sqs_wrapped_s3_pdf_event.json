@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"Records\":[{\"s3\":{\"bucket\":{\"name\":\"doc2order-inquiry-engine-input-dev\"},\"object\":{\"key\":\"input/dev/evapo/sample.pdf\",\"eTag\":\"abc123etag\"}}}]}"
+    }
+  ]
+}

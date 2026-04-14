@@ -2,31 +2,143 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Doc2Order Inquiry Engine
 
+Parameters:
+  AppEnv:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+
+  CustomerId:
+    Type: String
+    Default: evapo
+
+  ExistingInputBucketName:
+    Type: String
+    Default: flawless-doc2order-emailpdf-prod
+    Description: Existing S3 bucket used for inbound customer documents
+
 Globals:
   Function:
     Runtime: python3.12
     Timeout: 60
     MemorySize: 512
+    Environment:
+      Variables:
+        APP_ENV: !Ref AppEnv
+        CUSTOMER_ID: !Ref CustomerId
+        INPUT_BUCKET: !Ref ExistingInputBucketName
 
 Resources:
+  IngressDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub doc2order-inquiry-engine-ingress-dlq-${AppEnv}
+      MessageRetentionPeriod: 1209600 # 14 days
+
+  IngressQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub doc2order-inquiry-engine-ingress-${AppEnv}
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 345600 # 4 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt IngressDlq.Arn
+        maxReceiveCount: 3
+
+  IngressQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref IngressQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowS3SendMessage
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt IngressQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub arn:aws:s3:::${ExistingInputBucketName}
+
+  ProcessedDocsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub Doc2OrderInquiryEngineProcessedDocs-${AppEnv}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: doc_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: doc_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
   IngestFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: doc2order-inquiry-engine-ingest-dev
+      FunctionName: !Sub doc2order-inquiry-engine-ingest-${AppEnv}
       Handler: src/core/ingest/handler.handler
       CodeUri: .
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt IngressQueue.QueueName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProcessedDocsTable
+        - Statement:
+            - Sid: AllowReadFromExistingInputBucket
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:GetObjectTagging
+                - s3:ListBucket
+              Resource:
+                - !Sub arn:aws:s3:::${ExistingInputBucketName}
+                - !Sub arn:aws:s3:::${ExistingInputBucketName}/*
       Environment:
         Variables:
-          APP_ENV: dev
-          CUSTOMER_ID: evapo
+          PROCESSED_DOCS_TABLE: !Ref ProcessedDocsTable
+          INPUT_PREFIX: !Sub input/${AppEnv}/${CustomerId}/
+      Events:
+        IngressQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt IngressQueue.Arn
+            BatchSize: 1
+            Enabled: true
 
-  ClassifyFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: doc2order-inquiry-engine-classify-dev
-      Handler: src/core/classify/handler.handler
-      CodeUri: .
-      Environment:
-        Variables:
-          APP_ENV: dev
-          CUSTOMER_ID: evapo
+Outputs:
+  InputBucketName:
+    Description: Existing input bucket name used by the stack
+    Value: !Ref ExistingInputBucketName
+
+  InputPrefix:
+    Description: Expected input prefix for this environment and customer
+    Value: !Sub input/${AppEnv}/${CustomerId}/
+
+  IngressQueueName:
+    Description: Main ingestion SQS queue
+    Value: !GetAtt IngressQueue.QueueName
+
+  IngressQueueArn:
+    Description: Main ingestion SQS queue ARN
+    Value: !GetAtt IngressQueue.Arn
+
+  IngressDlqName:
+    Description: Dead-letter queue name
+    Value: !GetAtt IngressDlq.QueueName
+
+  ProcessedDocsTableName:
+    Description: DynamoDB table for document idempotency
+    Value: !Ref ProcessedDocsTable
+
+  IngestFunctionName:
+    Description: Lambda function name for ingestion
+    Value: !Ref IngestFunction
