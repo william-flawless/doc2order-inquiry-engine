@@ -2,22 +2,30 @@ customer_id: evapo
 
 input:
   supported_file_types:
-    - pdf
     - xlsx
 
-parsing:
-  pdf:
-    enable_ocr: true
-    enable_llm_extraction: true
-  xlsx:
-    multi_sheet: true
+workbook:
+  expected_sheet_name: Sheet1
+  header_row_index: 1
+  required_headers:
+    - Sku
+    - Category
+    - Brand
+    - Description
+    - Qty
+    - Stock
+    - Price
+
+mapping:
+  customer_sku_column: Sku
+  description_column: Description
+  quantity_column: Qty
+  brand_column: Brand
+  category_column: Category
+  stock_output_column: Stock
+  price_output_column: Price
 
 matching:
-  candidate_top_k: 5
-  min_confidence_match: 0.85
-  min_confidence_low: 0.60
-
-report:
-  output_formats:
-    - csv
-    - xlsx
+  deterministic_source: Doc2OrderCorrections
+  customer_sku_field_name: customer_sku
+  description_field_name: description

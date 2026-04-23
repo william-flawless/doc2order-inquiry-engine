@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "doc2order-inquiry-engine-dev"
+resolve_s3 = true
+s3_prefix = "doc2order-inquiry-engine-dev"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AppEnv=\"dev\" CustomerId=\"evapo\" ExistingInputBucketName=\"flawless-doc2order-inquiry-engine-prod\""
+image_repositories = []
+confirm_changeset = true
+
+[default.global.parameters]
+region = "eu-west-2"
